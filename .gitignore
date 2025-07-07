@@ -1,0 +1,8 @@
+# Ignore Node.js dependencies
+node_modules/
+
+# Ignore sensitive credential files
+firebase-credentials.json
+
+# Ignore environment files
+.env
