@@ -26,6 +26,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const editProfileCloseBtn = document.getElementById('edit-profile-close-btn');
     const saveProfileBtn = document.getElementById('save-profile-btn');
 
+    const editSongModal = document.getElementById('edit-song-modal');
+    const editSongCloseBtn = document.getElementById('edit-song-close-btn');
+    const saveSongChangesBtn = document.getElementById('save-song-changes-btn');
+    const editAddPartSelect = document.getElementById('edit-add-part-select');
+    const editAddPartBtn = document.getElementById('edit-add-part-btn');
+    const editSelectedPartsDisplay = document.getElementById('edit-selected-parts-display');
+
     const userListDiv = document.getElementById('user-list');
 
     // New elements for structured parts/instruments
@@ -39,6 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedPartsDisplay = document.getElementById('selected-parts-display');
 
     let selectedNeededParts = []; // To store parts for the new song
+    let editingSongId = null; // To store the ID of the song being edited
+    let editNeededParts = []; // To store parts for the song being edited
 
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
         ? 'http://localhost:3000' 
@@ -88,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addSongModalBtn.addEventListener('click', () => {
         addSongModal.style.display = 'flex';
         selectedNeededParts = []; // Reset for new song
-        renderSelectedParts();
+        renderSelectedParts(selectedNeededParts, selectedPartsDisplay); // Use the correct display element
     });
     closeBtn.addEventListener('click', () => { addSongModal.style.display = 'none'; });
     window.addEventListener('click', (e) => {
@@ -116,11 +125,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    editSongCloseBtn.addEventListener('click', () => { editSongModal.style.display = 'none'; });
+    saveSongChangesBtn.addEventListener('click', handleSaveSongChanges);
+    window.addEventListener('click', (e) => {
+        if (e.target == editSongModal) {
+            editSongModal.style.display = 'none';
+        }
+    });
+
     addPartBtn.addEventListener('click', () => {
         const selectedPartName = addPartSelect.value;
         if (selectedPartName) {
-            selectedNeededParts.push(selectedPartName);
-            renderSelectedParts();
+            selectedNeededParts.push({ id: Date.now().toString(), name: selectedPartName }); // Assign a temporary ID
+            renderSelectedParts(selectedNeededParts, selectedPartsDisplay);
+        }
+    });
+
+    editAddPartBtn.addEventListener('click', () => {
+        const selectedPartName = editAddPartSelect.value;
+        if (selectedPartName) {
+            editNeededParts.push({ id: Date.now().toString(), name: selectedPartName }); // Assign a temporary ID
+            renderSelectedParts(editNeededParts, editSelectedPartsDisplay);
         }
     });
 
@@ -128,7 +153,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.classList.contains('remove-part-btn')) {
             const indexToRemove = e.target.dataset.index;
             selectedNeededParts.splice(indexToRemove, 1);
-            renderSelectedParts();
+            renderSelectedParts(selectedNeededParts, selectedPartsDisplay);
+        }
+    });
+
+    editSelectedPartsDisplay.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-part-btn')) {
+            const indexToRemove = e.target.dataset.index;
+            editNeededParts.splice(indexToRemove, 1);
+            renderSelectedParts(editNeededParts, editSelectedPartsDisplay);
         }
     });
 
@@ -136,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCheckboxes(signupInstrumentsContainer, INSTRUMENTS);
     renderSelect(signupPositionSelect, POSITIONS);
     renderSelect(addPartSelect, INSTRUMENTS); // Populate add part select
+    renderSelect(editAddPartSelect, INSTRUMENTS); // Populate edit add part select
 
     // Check for saved user info on page load
     const savedUser = localStorage.getItem('band-user');
@@ -202,12 +236,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderSelectedParts() {
-        selectedPartsDisplay.innerHTML = selectedNeededParts.map((partName, index) => {
-            const part = INSTRUMENTS.find(inst => inst.name === partName) || { name: partName, emoji: '❓' };
+    function renderSelectedParts(partsArray, displayElement) {
+        displayElement.innerHTML = partsArray.map((part, index) => {
+            const instrument = INSTRUMENTS.find(inst => inst.name === part.name) || { name: part.name, emoji: '❓' };
             return `
                 <span class="selected-part-tag">
-                    ${part.emoji} ${part.name}
+                    ${instrument.emoji} ${instrument.name}
                     <button class="remove-part-btn" data-index="${index}">&times;</button>
                 </span>
             `;
@@ -321,10 +355,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isPlayable && !isFilled) className += ' part-highlight'; // Highlight if playable and not filled
 
                 const text = isFilled ? `${instrument.emoji} ${instrument.name} (${participant.name})` : `${instrument.emoji} ${instrument.name}`;
-                return `<span class="needed-part ${className}" data-part-id="${part.id}" data-song-id="${song.id}">${text}</span>`;
+                const interestButtonHTML = (isFilled && !isCurrentUser) ? 
+                    `<button class="interest-btn" data-part-id="${part.id}" data-song-id="${song.id}">관심있어요</button>` : '';
+                return `<span class="needed-part ${className}" data-part-id="${part.id}" data-song-id="${song.id}">${text}</span>${interestButtonHTML}`;
             }).join('');
 
             const deleteButtonHTML = (currentUser.isAdmin || currentUser.nickname === song.creatorNickname) ? `<button class="delete-song-btn" data-song-id="${song.id}">&#128465;</button>` : '';
+            const editButtonHTML = (currentUser.isAdmin || currentUser.nickname === song.creatorNickname) ? `<button class="edit-song-btn" data-song-id="${song.id}">&#9998;</button>` : '';
             const playButtonHTML = song.youtubeUrl ? `<span class="play-btn" data-url="${song.youtubeUrl}" data-start-time="${song.startTime || 0}">&#9654;&#65039;</span>` : '';
 
             // Check if all needed parts are filled
@@ -342,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const songElement = document.createElement('div');
             songElement.className = songClass;
             songElement.innerHTML = `
-                <h3>${song.title} - ${song.artist} ${completedIconHTML} ${playButtonHTML} ${deleteButtonHTML}</h3>
+                <h3>${song.title} - ${song.artist} ${playButtonHTML} ${completedIconHTML} ${editButtonHTML} ${deleteButtonHTML}</h3>
                 <div>Needed: ${neededPartsHTML}</div>
             `;
             songList.appendChild(songElement);
@@ -389,9 +426,41 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('youtube-url').value = '';
             document.getElementById('start-time').value = '';
             selectedNeededParts = []; // Clear selected parts
-            renderSelectedParts();
+            renderSelectedParts(selectedNeededParts, selectedPartsDisplay);
             addSongModal.style.display = 'none'; // Close modal after proposing
             loadSongs();
+        } else {
+            alert('모든 칸을 채워주세요. 또한, 최소 한개 이상의 악기를 선택해 주세요.');
+        }
+    }
+
+    async function handleSaveSongChanges() {
+        const songId = document.getElementById('edit-song-id').value;
+        const title = document.getElementById('edit-song-title').value;
+        const artist = document.getElementById('edit-artist').value;
+        const youtubeUrl = document.getElementById('edit-youtube-url').value;
+        const startTime = parseStartTime(document.getElementById('edit-start-time').value);
+
+        if (title && artist && editNeededParts.length > 0) {
+            const response = await fetch(`${API_BASE_URL}/api/songs/${songId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title, 
+                    artist, 
+                    neededParts: editNeededParts, 
+                    youtubeUrl, 
+                    startTime, 
+                    currentUserNickname: currentUser.nickname,
+                    isAdmin: currentUser.isAdmin
+                })
+            });
+            if (response.ok) {
+                editSongModal.style.display = 'none';
+                loadSongs();
+            } else {
+                alert(await response.text());
+            }
         } else {
             alert('모든 칸을 채워주세요. 또한, 최소 한개 이상의 악기를 선택해 주세요.');
         }
@@ -415,6 +484,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 await fetch(`${API_BASE_URL}/api/songs/${songId}`, { method: 'DELETE' });
                 loadSongs();
             }
+        } else if (target.classList.contains('edit-song-btn')) {
+            const songId = target.dataset.songId;
+            const song = (await (await fetch(`${API_BASE_URL}/api/songs`)).json()).find(s => s.id === songId);
+            if (song) {
+                document.getElementById('edit-song-id').value = song.id;
+                document.getElementById('edit-song-title').value = song.title;
+                document.getElementById('edit-artist').value = song.artist;
+                document.getElementById('edit-youtube-url').value = song.youtubeUrl || '';
+                document.getElementById('edit-start-time').value = song.startTime || '';
+                editNeededParts = song.neededParts.map(p => ({ id: p.id, name: p.name })); // Deep copy
+                renderSelectedParts(editNeededParts, editSelectedPartsDisplay);
+                editSongModal.style.display = 'flex';
+            }
         } else if (target.classList.contains('play-btn')) {
             const url = target.dataset.url;
             const startTime = target.dataset.startTime;
@@ -425,6 +507,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 youtubeModal.style.display = 'flex';
             } else {
                 alert('유튜브 영상을 불러올 수 없습니다.');
+            }
+        } else if (target.classList.contains('interest-btn')) {
+            const partId = target.dataset.partId;
+            const songId = target.dataset.songId;
+            const response = await fetch(`${API_BASE_URL}/api/songs/${songId}/interest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nickname: currentUser.nickname, partId })
+            });
+            if (response.ok) {
+                alert('관심을 표명했습니다. 곡 제안자에게 알림이 갈 것입니다.');
+            } else {
+                alert(await response.text());
             }
         }
     }

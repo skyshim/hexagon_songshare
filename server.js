@@ -123,10 +123,44 @@ app.post('/api/songs', async (req, res) => {
         participants: [],
         youtubeUrl: youtubeUrl || null,
         startTime: startTime || 0,
-        creatorNickname: creatorNickname // Save the nickname of the user who proposed the song
+        creatorNickname: creatorNickname, // Save the nickname of the user who proposed the song
+        interestedUsers: [] // New field to store users interested in filled parts
     };
     const docRef = await db.collection('songs').add(newSong);
     res.status(201).json({ id: docRef.id, ...newSong });
+});
+
+// API to express interest in a filled part
+app.post('/api/songs/:id/interest', async (req, res) => {
+    const { nickname, partId } = req.body;
+    const songRef = db.collection('songs').doc(req.params.id);
+    const doc = await songRef.get();
+
+    if (!doc.exists) {
+        return res.status(404).send('Song not found.');
+    }
+
+    const song = doc.data();
+    const targetPart = song.neededParts.find(p => p.id === partId);
+
+    if (!targetPart) {
+        return res.status(404).send('Part not found in song.');
+    }
+
+    const isFilled = song.participants.some(p => p.partId === partId);
+    if (!isFilled) {
+        return res.status(400).send('This part is not filled. Please join directly.');
+    }
+
+    const alreadyInterested = song.interestedUsers.some(iu => iu.partId === partId && iu.nickname === nickname);
+    if (alreadyInterested) {
+        return res.status(400).send('You have already expressed interest in this part.');
+    }
+
+    await songRef.update({
+        interestedUsers: admin.firestore.FieldValue.arrayUnion({ nickname, partId })
+    });
+    res.status(200).send('Interest expressed successfully.');
 });
 
 // API to join or leave a song part
@@ -164,6 +198,46 @@ app.post('/api/songs/:id/join', async (req, res) => {
         participants: admin.firestore.FieldValue.arrayUnion({ name: realName, partId, partName: targetPart.name }) // Store partName for display
     });
     res.status(200).send('Successfully joined the part.');
+});
+
+// API to update a song
+app.put('/api/songs/:id', async (req, res) => {
+    const songId = req.params.id;
+    const { title, artist, neededParts, youtubeUrl, startTime, currentUserNickname, isAdmin } = req.body;
+
+    const songRef = db.collection('songs').doc(songId);
+    const doc = await songRef.get();
+
+    if (!doc.exists) {
+        return res.status(404).send('Song not found.');
+    }
+
+    const song = doc.data();
+
+    // Authorization check
+    if (!isAdmin && song.creatorNickname !== currentUserNickname) {
+        return res.status(403).send('You are not authorized to edit this song.');
+    }
+
+    // Assign unique IDs to new needed parts, preserve existing IDs
+    const updatedNeededParts = (neededParts || []).map(part => {
+        if (part.id) return part; // Part already has an ID
+        return { id: crypto.randomUUID(), name: part.name };
+    });
+
+    const updatedSong = {
+        title,
+        artist,
+        neededParts: updatedNeededParts,
+        youtubeUrl: youtubeUrl || null,
+        startTime: startTime || 0,
+        // Preserve creatorNickname and interestedUsers
+        creatorNickname: song.creatorNickname,
+        interestedUsers: song.interestedUsers || []
+    };
+
+    await songRef.update(updatedSong);
+    res.status(200).send('Song updated successfully.');
 });
 
 // API to delete a song (admin only)

@@ -226,16 +226,16 @@ button {
     margin-top: 0;
     margin-bottom: 15px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    align-items: center; /* Align items vertically in the center */
     font-size: 1.2em;
     color: #34495e;
 }
 
-.play-btn {
+.song h3 .play-btn {
+    font-size: 1.2em; /* Make it slightly smaller */
+    margin-left: 8px; /* Reduce space from title */
+    margin-right: auto; /* Push delete button to the right */
     cursor: pointer;
-    font-size: 20px;
-    margin-left: 10px;
 }
 
 .delete-song-btn {
@@ -244,6 +244,23 @@ button {
     font-size: 18px;
     padding: 5px;
 }
+
+.interest-btn {
+    background-color: #f0f0f0; /* Light background */
+    color: #555; /* Darker text */
+    border: 1px solid #ccc;
+    padding: 4px 8px; /* Smaller padding */
+    font-size: 0.8em; /* Smaller font size */
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 8px; /* Space from the part tag */
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+.interest-btn:hover {
+    background-color: #e0e0e0;
+}
+
 
 .needed-part {
     display: inline-block;
