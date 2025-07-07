@@ -1,8 +1,14 @@
 const express = require('express');
 const admin = require('firebase-admin');
 const cors = require('cors');
+const { google } = require('googleapis');
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Load environment variables from .env file in development
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 // Firebase Admin SDK setup
 // OnRender will use environment variables for this
@@ -14,6 +20,12 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 const db = admin.firestore();
+
+// YouTube API setup
+const youtube = google.youtube({
+  version: 'v3',
+  auth: process.env.YOUTUBE_API_KEY
+});
 
 // --- IMPORTANT: Set your admin password here ---
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // Use environment variable for admin password
@@ -92,13 +104,25 @@ app.get('/api/songs', async (req, res) => {
 });
 
 // API to add a new song
+const crypto = require('crypto');
+
+// API to add a new song
 app.post('/api/songs', async (req, res) => {
-    const { title, artist, neededParts, creatorNickname } = req.body;
+    const { title, artist, neededParts, youtubeUrl, startTime, creatorNickname } = req.body;
+    
+    // Assign a unique ID to each needed part
+    const partsWithIds = (neededParts || []).map(partName => ({
+        id: crypto.randomUUID(),
+        name: partName
+    }));
+
     const newSong = {
         title,
         artist,
-        neededParts: neededParts || [],
+        neededParts: partsWithIds,
         participants: [],
+        youtubeUrl: youtubeUrl || null,
+        startTime: startTime || 0,
         creatorNickname: creatorNickname // Save the nickname of the user who proposed the song
     };
     const docRef = await db.collection('songs').add(newSong);
@@ -107,7 +131,7 @@ app.post('/api/songs', async (req, res) => {
 
 // API to join or leave a song part
 app.post('/api/songs/:id/join', async (req, res) => {
-    const { realName, part } = req.body;
+    const { realName, partId } = req.body;
     const songRef = db.collection('songs').doc(req.params.id);
     const doc = await songRef.get();
 
@@ -116,7 +140,13 @@ app.post('/api/songs/:id/join', async (req, res) => {
     }
 
     const song = doc.data();
-    const existingParticipant = song.participants.find(p => p.part === part);
+    const targetPart = song.neededParts.find(p => p.id === partId);
+
+    if (!targetPart) {
+        return res.status(404).send('Part not found in song.');
+    }
+
+    const existingParticipant = song.participants.find(p => p.partId === partId);
 
     if (existingParticipant && existingParticipant.name === realName) {
         // User is already on this part, so remove them (cancel)
@@ -131,7 +161,7 @@ app.post('/api/songs/:id/join', async (req, res) => {
 
     // Part is free, so join
     await songRef.update({
-        participants: admin.firestore.FieldValue.arrayUnion({ name: realName, part })
+        participants: admin.firestore.FieldValue.arrayUnion({ name: realName, partId, partName: targetPart.name }) // Store partName for display
     });
     res.status(200).send('Successfully joined the part.');
 });
@@ -142,6 +172,55 @@ app.delete('/api/songs/:id', async (req, res) => {
     // For now, we trust the client, but this is not secure.
     await db.collection('songs').doc(req.params.id).delete();
     res.status(200).send('Song deleted successfully.');
+});
+
+// YouTube API endpoint
+app.get('/api/youtube/details', async (req, res) => {
+    if (!process.env.YOUTUBE_API_KEY) {
+        return res.status(500).send('YouTube API key is not configured on the server.');
+    }
+
+    const { url, startTime = 0 } = req.query;
+    let videoId;
+    try {
+        const urlObj = new URL(url);
+        if (urlObj.hostname === 'youtu.be') {
+            videoId = urlObj.pathname.slice(1);
+        } else {
+            videoId = urlObj.searchParams.get('v');
+        }
+    } catch (e) {
+        return res.status(400).send('Invalid YouTube URL.');
+    }
+
+    if (!videoId) {
+        return res.status(400).send('Invalid YouTube URL.');
+    }
+
+    try {
+        const response = await youtube.videos.list({
+            part: 'snippet,player',
+            id: videoId
+        });
+
+        if (response.data.items.length === 0) {
+            return res.status(404).send('Video not found.');
+        }
+
+        const video = response.data.items[0];
+        const embedHtml = video.player.embedHtml
+            .replace(/height="\d+"/, 'height="110"')
+            .replace(/src="([^"]+)"/, `src="$1&start=${startTime}"`);
+
+        res.json({
+            title: video.snippet.title,
+            thumbnail: video.snippet.thumbnails.default.url,
+            embedHtml: embedHtml
+        });
+    } catch (error) {
+        console.error('Error fetching YouTube video:', error);
+        res.status(500).send('Error fetching YouTube video.');
+    }
 });
 
 

@@ -24,7 +24,64 @@ h1 {
     margin-bottom: 30px;
 }
 
-/* --- Auth Forms --- */
+.checkbox-item label {
+    display: inline-block;
+    font-weight: normal;
+}
+
+.add-part-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.add-part-controls select {
+    flex-grow: 1;
+    margin-bottom: 0; /* Override default margin */
+}
+
+.add-part-controls button {
+    flex-shrink: 0;
+    width: auto;
+    padding: 8px 15px;
+    background-color: #3498db;
+    color: white;
+}
+
+.selected-parts-display {
+    border: 1px solid #eee;
+    padding: 10px;
+    border-radius: 5px;
+    min-height: 40px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.selected-part-tag {
+    background-color: #e0f7fa;
+    color: #00796b;
+    padding: 6px 10px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    font-size: 0.9em;
+}
+
+.remove-part-btn {
+    background: none;
+    border: none;
+    color: #00796b;
+    font-size: 1.2em;
+    margin-left: 5px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+
+/* Responsive Design */
 #auth-container {
     padding: 20px;
 }
@@ -173,6 +230,12 @@ button {
     align-items: center;
     font-size: 1.2em;
     color: #34495e;
+}
+
+.play-btn {
+    cursor: pointer;
+    font-size: 20px;
+    margin-left: 10px;
 }
 
 .delete-song-btn {

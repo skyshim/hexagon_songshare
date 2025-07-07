@@ -60,11 +60,25 @@
             <h3>새 곡 제안</h3>
             <input type="text" id="song-title" placeholder="곡 제목">
             <input type="text" id="artist" placeholder="아티스트">
+            <input type="text" id="youtube-url" placeholder="유튜브 링크 (선택 사항)">
+            <input type="text" id="start-time" placeholder="시작 시간 (예: 1:25 또는 85)">
             <div class="checkbox-group">
                 <label>필요한 세션:</label>
-                <div id="needed-parts-container"></div>
+                <div class="add-part-controls">
+                    <select id="add-part-select"></select>
+                    <button id="add-part-btn">추가</button>
+                </div>
+                <div id="selected-parts-display" class="selected-parts-display"></div>
             </div>
             <button id="propose-btn">&#10133; 제안하기</button>
+        </div>
+    </div>
+
+    <!-- YouTube Player Modal -->
+    <div id="youtube-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn" id="youtube-close-btn">&times;</span>
+            <div id="youtube-player-container"></div>
         </div>
     </div>
 

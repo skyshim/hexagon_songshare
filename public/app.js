@@ -17,6 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const addSongModalBtn = document.getElementById('add-song-modal-btn');
     const closeBtn = document.querySelector('.close-btn');
 
+    const youtubeModal = document.getElementById('youtube-modal');
+    const youtubeCloseBtn = document.getElementById('youtube-close-btn');
+    const youtubePlayerContainer = document.getElementById('youtube-player-container');
+
     const editProfileModal = document.getElementById('edit-profile-modal');
     const editProfileBtn = document.getElementById('edit-profile-btn');
     const editProfileCloseBtn = document.getElementById('edit-profile-close-btn');
@@ -25,38 +29,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const userListDiv = document.getElementById('user-list');
 
     // New elements for structured parts/instruments
-    const neededPartsContainer = document.getElementById('needed-parts-container');
     const signupInstrumentsContainer = document.getElementById('signup-instruments-container');
     const signupPositionSelect = document.getElementById('signup-position'); // Changed to select
     const editInstrumentsContainer = document.getElementById('edit-instruments-container');
     const editPositionSelect = document.getElementById('edit-position'); // Changed to select
 
+    const addPartSelect = document.getElementById('add-part-select');
+    const addPartBtn = document.getElementById('add-part-btn');
+    const selectedPartsDisplay = document.getElementById('selected-parts-display');
+
+    let selectedNeededParts = []; // To store parts for the new song
+
+    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://localhost:3000' 
+        : ''; // For production, the base URL is the same as the frontend
+
     let currentUser = {};
 
     // --- Predefined Lists with Emojis ---
     const INSTRUMENTS = [
-        { name: 'Vocal', emoji: '🎤' },
-        { name: 'Electric Guitar', emoji: '🎸' },
-        { name: 'Acoustic Guitar', emoji: '🎸' },
-        { name: 'Bass', emoji: '🎸' },
-        { name: 'Piano', emoji: '🎹' },
-        { name: 'Synthesizer', emoji: '🎹' },
-        { name: 'Drums', emoji: '🥁' },
-        { name: 'Violin', emoji: '🎻' }
+        { name: '보컬(남)', emoji: '🎤' },
+        { name: '보컬(여)', emoji: '🎤' },
+        { name: '일렉기타(메인)', emoji: '🎸' },
+        { name: '일렉기타(백킹)', emoji: '🎸' },
+        { name: '어쿠스틱기타', emoji: '🎸' },
+        { name: '베이스', emoji: '🎸' },
+        { name: '건반', emoji: '🎹' },
+        { name: '신시사이저', emoji: '🎹' },
+        { name: '드럼', emoji: '🥁' },
+        { name: '바이올린', emoji: '🎻' }
     ];
 
     const POSITIONS = [
-        { name: 'None', emoji: '' }, // Default option
-        { name: 'Vocalist', emoji: '🎤' },
-        { name: 'Electric Guitarist', emoji: '🎸' },
-        { name: 'Acoustic Guitarist', emoji: '🎸' },
-        { name: 'Bassist', emoji: '🎸' },
-        { name: 'Pianist', emoji: '🎹' },
-        { name: 'Synthesizer Player', emoji: '🎹' },
-        { name: 'Drummer', emoji: '🥁' },
-        { name: 'Violinist', emoji: '🎻' },
-        { name: 'Band Manager', emoji: '📋' },
-        { name: 'Sound Engineer', emoji: '🎛️' }
+        { name: '없음', emoji: '' }, // Default option
+        { name: '보컬(남)', emoji: '🎤' },
+        { name: '보컬(여)', emoji: '🎤' },
+        { name: '일렉기타(메인)', emoji: '🎸' },
+        { name: '일렉기타(백킹)', emoji: '🎸' },
+        { name: '어쿠스틱기타', emoji: '🎸' },
+        { name: '베이스', emoji: '🎸' },
+        { name: '건반', emoji: '🎹' },
+        { name: '신시사이저', emoji: '🎹' },
+        { name: '드럼', emoji: '🥁' },
+        { name: '바이올린', emoji: '🎻' },
+        { name: '밴드 매니저', emoji: '📋' },
+        { name: '사운드 엔지니어', emoji: '🎛️' }
     ];
 
     // --- Event Listeners ---
@@ -68,12 +85,21 @@ document.addEventListener('DOMContentLoaded', () => {
     proposeBtn.addEventListener('click', handleProposeSong);
     songList.addEventListener('click', handleSongInteraction);
 
-    addSongModalBtn.addEventListener('click', () => { addSongModal.style.display = 'flex'; });
+    addSongModalBtn.addEventListener('click', () => {
+        addSongModal.style.display = 'flex';
+        selectedNeededParts = []; // Reset for new song
+        renderSelectedParts();
+    });
     closeBtn.addEventListener('click', () => { addSongModal.style.display = 'none'; });
     window.addEventListener('click', (e) => {
         if (e.target == addSongModal) {
             addSongModal.style.display = 'none';
         }
+    });
+
+    youtubeCloseBtn.addEventListener('click', () => {
+        youtubeModal.style.display = 'none';
+        youtubePlayerContainer.innerHTML = ''; // Stop the video
     });
 
     editProfileBtn.addEventListener('click', () => {
@@ -90,10 +116,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    addPartBtn.addEventListener('click', () => {
+        const selectedPartName = addPartSelect.value;
+        if (selectedPartName) {
+            selectedNeededParts.push(selectedPartName);
+            renderSelectedParts();
+        }
+    });
+
+    selectedPartsDisplay.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-part-btn')) {
+            const indexToRemove = e.target.dataset.index;
+            selectedNeededParts.splice(indexToRemove, 1);
+            renderSelectedParts();
+        }
+    });
+
     // Initial rendering of form elements
-    renderCheckboxes(neededPartsContainer, INSTRUMENTS);
     renderCheckboxes(signupInstrumentsContainer, INSTRUMENTS);
-    renderSelect(signupPositionSelect, POSITIONS); // Render select for signup
+    renderSelect(signupPositionSelect, POSITIONS);
+    renderSelect(addPartSelect, INSTRUMENTS); // Populate add part select
 
     // Check for saved user info on page load
     const savedUser = localStorage.getItem('band-user');
@@ -124,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadUsers();
     }
 
-    // Helper to render checkboxes
+    // Helper to render checkboxes (for signup/edit profile)
     function renderCheckboxes(container, list, selectedItems = []) {
         container.innerHTML = '';
         list.forEach(item => {
@@ -160,10 +202,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderSelectedParts() {
+        selectedPartsDisplay.innerHTML = selectedNeededParts.map((partName, index) => {
+            const part = INSTRUMENTS.find(inst => inst.name === partName) || { name: partName, emoji: '❓' };
+            return `
+                <span class="selected-part-tag">
+                    ${part.emoji} ${part.name}
+                    <button class="remove-part-btn" data-index="${index}">&times;</button>
+                </span>
+            `;
+        }).join('');
+    }
+
     function getSelectedCheckboxes(containerId) {
         const container = document.getElementById(containerId);
         const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
         return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    function parseStartTime(timeString) {
+        if (!timeString) return 0;
+        if (timeString.includes(':')) {
+            const parts = timeString.split(':').map(Number);
+            return (parts[0] * 60) + (parts[1] || 0);
+        } 
+        return Number(timeString) || 0;
     }
 
     async function handleLogin() {
@@ -171,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = adminPasswordField.value;
         if (!nickname) return;
 
-        const response = await fetch('/api/login', {
+        const response = await fetch(`${API_BASE_URL}/api/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nickname, password })
@@ -194,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!realName || !nickname) return;
 
-        const response = await fetch('/api/signup', {
+        const response = await fetch(`${API_BASE_URL}/api/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ realName, nickname, instruments, position: [position] }) // Send as array for consistency
@@ -216,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!realName) return;
 
-        const response = await fetch('/api/profile/update', {
+        const response = await fetch(`${API_BASE_URL}/api/profile/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nickname: currentUser.nickname, realName, instruments, position: [position] }) // Send as array for consistency
@@ -241,16 +304,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadSongs() {
-        const response = await fetch('/api/songs');
+        const response = await fetch(`${API_BASE_URL}/api/songs`);
         const songs = await response.json();
         songList.innerHTML = '';
         songs.forEach(song => {
-            const songElement = document.createElement('div');
-            songElement.className = 'song';
-
-            const neededPartsHTML = song.neededParts.map(partName => {
-                const part = INSTRUMENTS.find(inst => inst.name === partName) || { name: partName, emoji: '❓' };
-                const participant = song.participants.find(p => p.part === part.name);
+            const neededPartsHTML = song.neededParts.map(part => {
+                const instrument = INSTRUMENTS.find(inst => inst.name === part.name) || { name: part.name, emoji: '❓' };
+                const participant = song.participants.find(p => p.partId === part.id);
                 const isFilled = !!participant;
                 const isCurrentUser = isFilled && participant.name === currentUser.realName;
                 const isPlayable = currentUser.instruments && currentUser.instruments.includes(part.name); // Check if current user can play this part
@@ -260,25 +320,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isCurrentUser) className += ' current-user-part';
                 if (isPlayable && !isFilled) className += ' part-highlight'; // Highlight if playable and not filled
 
-                const text = isFilled ? `${part.emoji} ${part.name} (${participant.name})` : `${part.emoji} ${part.name}`;
-                return `<span class="needed-part ${className}" data-part="${part.name}" data-song-id="${song.id}">${text}</span>`;
+                const text = isFilled ? `${instrument.emoji} ${instrument.name} (${participant.name})` : `${instrument.emoji} ${instrument.name}`;
+                return `<span class="needed-part ${className}" data-part-id="${part.id}" data-song-id="${song.id}">${text}</span>`;
             }).join('');
 
             const deleteButtonHTML = (currentUser.isAdmin || currentUser.nickname === song.creatorNickname) ? `<button class="delete-song-btn" data-song-id="${song.id}">&#128465;</button>` : '';
+            const playButtonHTML = song.youtubeUrl ? `<span class="play-btn" data-url="${song.youtubeUrl}" data-start-time="${song.startTime || 0}">&#9654;&#65039;</span>` : '';
 
             // Check if all needed parts are filled
-            const allPartsFilled = song.neededParts.every(partName => 
-                song.participants.some(p => p.part === partName)
+            const allPartsFilled = song.neededParts.every(part => 
+                song.participants.some(p => p.partId === part.id)
             );
 
             let completedIconHTML = '';
+            let songClass = 'song';
             if (allPartsFilled) {
-                songElement.classList.add('song-completed');
+                songClass += ' song-completed';
                 completedIconHTML = ' &#9989;'; // Check mark emoji
             }
 
+            const songElement = document.createElement('div');
+            songElement.className = songClass;
             songElement.innerHTML = `
-                <h3>${song.title} - ${song.artist} ${completedIconHTML} ${deleteButtonHTML}</h3>
+                <h3>${song.title} - ${song.artist} ${completedIconHTML} ${playButtonHTML} ${deleteButtonHTML}</h3>
                 <div>Needed: ${neededPartsHTML}</div>
             `;
             songList.appendChild(songElement);
@@ -286,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadUsers() {
-        const response = await fetch('/api/users');
+        const response = await fetch(`${API_BASE_URL}/api/users`);
         const users = await response.json();
         const userListHtml = users.map(user => {
             const instrumentsHtml = (user.instruments || []).map(instName => {
@@ -299,8 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="user-card">
                     <h4>${user.nickname} (${user.realName})</h4>
-                    <p>Instruments: ${instrumentsHtml || 'N/A'}</p>
-                    <p>Position: ${positionHtml}</p>
+                    <p>포지션: ${positionHtml}</p>
+                    <br>
+                    <p>가능 악기: ${instrumentsHtml || 'N/A'}</p>
                 </div>
             `;
         }).join('');
@@ -310,42 +375,56 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleProposeSong() {
         const title = document.getElementById('song-title').value;
         const artist = document.getElementById('artist').value;
-        const neededParts = getSelectedCheckboxes('needed-parts-container');
-
-        if (title && artist && neededParts.length > 0) {
-            await fetch('/api/songs', {
+        const youtubeUrl = document.getElementById('youtube-url').value;
+        const startTime = parseStartTime(document.getElementById('start-time').value);
+        
+        if (title && artist && selectedNeededParts.length > 0) {
+            await fetch(`${API_BASE_URL}/api/songs`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, artist, neededParts, creatorNickname: currentUser.nickname }) // Pass creatorNickname
+                body: JSON.stringify({ title, artist, neededParts: selectedNeededParts, youtubeUrl, startTime, creatorNickname: currentUser.nickname })
             });
             document.getElementById('song-title').value = '';
             document.getElementById('artist').value = '';
-            // Clear checkboxes
-            neededPartsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.getElementById('youtube-url').value = '';
+            document.getElementById('start-time').value = '';
+            selectedNeededParts = []; // Clear selected parts
+            renderSelectedParts();
             addSongModal.style.display = 'none'; // Close modal after proposing
             loadSongs();
         } else {
-            alert('Please fill in all fields and select at least one needed part.');
+            alert('모든 칸을 채워주세요. 또한, 최소 한개 이상의 악기를 선택해 주세요.');
         }
     }
 
     async function handleSongInteraction(e) {
         const target = e.target;
         if (target.classList.contains('needed-part')) {
-            const part = target.dataset.part;
+            const partId = target.dataset.partId;
             const songId = target.dataset.songId;
 
-            await fetch(`/api/songs/${songId}/join`, {
+            await fetch(`${API_BASE_URL}/api/songs/${songId}/join`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ realName: currentUser.realName, part })
+                body: JSON.stringify({ realName: currentUser.realName, partId })
             });
             loadSongs();
         } else if (target.classList.contains('delete-song-btn')) {
             const songId = target.dataset.songId;
-            if (confirm('Are you sure you want to delete this song?')) {
-                await fetch(`/api/songs/${songId}`, { method: 'DELETE' });
+            if (confirm('곡을 삭제하시겠습니까?')) {
+                await fetch(`${API_BASE_URL}/api/songs/${songId}`, { method: 'DELETE' });
                 loadSongs();
+            }
+        } else if (target.classList.contains('play-btn')) {
+            const url = target.dataset.url;
+            const startTime = target.dataset.startTime;
+            const response = await fetch(`${API_BASE_URL}/api/youtube/details?url=${encodeURIComponent(url)}&startTime=${startTime}`);
+            if (response.ok) {
+                const { embedHtml } = await response.json();
+                youtubePlayerContainer.innerHTML = embedHtml;
+                youtubeModal.style.display = 'flex';
+            } else {
+                alert('유튜브 영상을 불러올 수 없습니다.');
             }
         }
     }
