@@ -282,9 +282,19 @@ app.get('/api/youtube/details', async (req, res) => {
         }
 
         const video = response.data.items[0];
-        const embedHtml = video.player.embedHtml
-            .replace(/height="\d+"/, 'height="110"')
-            .replace(/src="([^"]+)"/, `src="$1&start=${startTime}"`);
+        let embedHtml = video.player.embedHtml;
+
+        // Modify height for audio-only feel
+        embedHtml = embedHtml.replace(/height="\d+"/, 'height="110"');
+
+        // Add start time parameter correctly
+        const srcMatch = embedHtml.match(/src="([^"]+)"/);
+        if (srcMatch && srcMatch[1]) {
+            let videoSrc = srcMatch[1];
+            const separator = videoSrc.includes('?') ? '&' : '?';
+            videoSrc = `${videoSrc}${separator}start=${startTime}`;
+            embedHtml = embedHtml.replace(/src="([^"]+)"/, `src="${videoSrc}"`);
+        }
 
         res.json({
             title: video.snippet.title,
