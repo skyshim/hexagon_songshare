@@ -1,0 +1,303 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+#app-container {
+    max-width: 1200px; /* Increased max-width for sidebar */
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-top: 0;
+    margin-bottom: 30px;
+}
+
+/* --- Auth Forms --- */
+#auth-container {
+    padding: 20px;
+}
+
+#auth-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+input[type="text"], input[type="password"], select {
+    width: calc(100% - 24px); /* Adjust for padding */
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: white;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+#login-btn, #signup-btn {
+    width: 100%;
+    background-color: #3498db;
+    color: white;
+}
+
+#login-btn:hover, #signup-btn:hover {
+    background-color: #2980b9;
+}
+
+#auth-container p {
+    text-align: center;
+    margin-top: 20px;
+}
+
+#auth-container a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+/* --- Main Container --- */
+#main-container {
+    display: flex;
+    gap: 20px;
+}
+
+.main-content {
+    flex: 3; /* Takes 3/4 of the space */
+}
+
+#user-list-sidebar {
+    flex: 1; /* Takes 1/4 of the space */
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+}
+
+#user-list-sidebar h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.user-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-bottom: 10px;
+}
+
+.user-card h4 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    color: #34495e;
+}
+
+.user-card p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #2c3e50;
+}
+
+.header button {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px 15px;
+    margin-left: 10px;
+    font-size: 14px;
+}
+
+.header button:hover {
+    background-color: #e0e0e0;
+}
+
+/* --- Song List --- */
+#song-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Changed auto-fill to auto-fit */
+    gap: 20px;
+    padding-top: 20px;
+    width: 100%; /* Ensure it takes full width of its parent */
+}
+
+.song {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.song h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.2em;
+    color: #34495e;
+}
+
+.delete-song-btn {
+    background: none;
+    color: #e74c3c;
+    font-size: 18px;
+    padding: 5px;
+}
+
+.needed-part {
+    display: inline-block;
+    padding: 6px 12px;
+    margin: 4px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.part-needed {
+    background-color: #fde2e4; /* Light Red */
+    border: 1px solid #fbc2c8;
+    color: #c0392b;
+}
+
+.part-filled {
+    background-color: #d1f7c4; /* Light Green */
+    border: 1px solid #b2eeb5;
+    color: #27ae60;
+}
+
+.part-highlight {
+    border: 2px solid #3498db; /* Highlight border for playable parts */
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.8); /* Increased shadow for visibility */
+}
+
+.song-completed {
+    border: 2px solid #2ecc71; /* Green border for completed songs */
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.8); /* Increased shadow for visibility */
+}
+
+/* --- Modal --- */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 450px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #888;
+}
+
+.close-btn:hover {
+    color: #333;
+}
+
+.modal-content h3 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #2c3e50;
+}
+
+#propose-btn, #save-profile-btn {
+    width: 100%;
+    background-color: #2ecc71;
+    color: white;
+    margin-top: 10px;
+}
+
+#propose-btn:hover, #save-profile-btn:hover {
+    background-color: #27ae60;
+}
+
+/* Checkbox Group */
+.checkbox-group {
+    margin-bottom: 15px;
+    border: 1px solid #eee;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.checkbox-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #555;
+}
+
+.checkbox-item {
+    display: inline-block;
+    margin-right: 15px;
+    margin-bottom: 5px;
+}
+
+.checkbox-item input[type="checkbox"] {
+    margin-right: 5px;
+    display: inline-block;
+    width: auto;
+}
+
+.checkbox-item label {
+    display: inline-block;
+    font-weight: normal;
+}

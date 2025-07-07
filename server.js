@@ -1,0 +1,150 @@
+const express = require('express');
+const admin = require('firebase-admin');
+const cors = require('cors');
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Firebase Admin SDK setup
+// OnRender will use environment variables for this
+const serviceAccount = process.env.FIREBASE_CREDENTIALS
+  ? JSON.parse(process.env.FIREBASE_CREDENTIALS)
+  : require('./firebase-credentials.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+const db = admin.firestore();
+
+// --- IMPORTANT: Set your admin password here ---
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // Use environment variable for admin password
+
+app.use(cors());
+app.use(express.static('public'));
+app.use(express.json());
+
+// User management endpoints
+app.post('/api/signup', async (req, res) => {
+    const { realName, nickname, instruments, position } = req.body;
+    if (!realName || !nickname) {
+        return res.status(400).send('Real name and nickname are required.');
+    }
+    const userRef = db.collection('users').doc(nickname);
+    const doc = await userRef.get();
+    if (doc.exists) {
+        return res.status(400).send('Nickname already taken.');
+    }
+    await userRef.set({ realName, instruments: instruments || [], position: position || [] });
+    res.status(201).json({ nickname, realName, instruments: instruments || [], position: position || [], isAdmin: false });
+});
+
+app.post('/api/login', async (req, res) => {
+    const { nickname, password } = req.body;
+    if (!nickname) {
+        return res.status(400).send('Nickname is required.');
+    }
+
+    if (nickname.toLowerCase() === 'admin') {
+        if (password === ADMIN_PASSWORD) {
+            return res.status(200).json({ nickname: 'admin', realName: 'Administrator', instruments: [], position: ['Admin'], isAdmin: true });
+        } else {
+            return res.status(401).send('Incorrect admin password.');
+        }
+    }
+
+    const userRef = db.collection('users').doc(nickname);
+    const doc = await userRef.get();
+    if (!doc.exists) {
+        return res.status(404).send('User not found.');
+    }
+    res.status(200).json({ nickname, realName: doc.data().realName, instruments: doc.data().instruments || [], position: doc.data().position || [], isAdmin: false });
+});
+
+// API to get all users
+app.get('/api/users', async (req, res) => {
+    const usersSnapshot = await db.collection('users').get();
+    const users = [];
+    usersSnapshot.forEach(doc => {
+        users.push({ nickname: doc.id, ...doc.data() });
+    });
+    res.json(users);
+});
+
+// API to update user profile
+app.post('/api/profile/update', async (req, res) => {
+    const { nickname, realName, instruments, position } = req.body;
+    if (!nickname || !realName) {
+        return res.status(400).send('Nickname and real name are required.');
+    }
+    const userRef = db.collection('users').doc(nickname);
+    await userRef.update({ realName, instruments, position });
+    res.status(200).send('Profile updated successfully.');
+});
+
+
+// API to get all songs
+app.get('/api/songs', async (req, res) => {
+    const songsSnapshot = await db.collection('songs').orderBy('title').get();
+    const songs = [];
+    songsSnapshot.forEach(doc => {
+        songs.push({ id: doc.id, ...doc.data() });
+    });
+    res.json(songs);
+});
+
+// API to add a new song
+app.post('/api/songs', async (req, res) => {
+    const { title, artist, neededParts, creatorNickname } = req.body;
+    const newSong = {
+        title,
+        artist,
+        neededParts: neededParts || [],
+        participants: [],
+        creatorNickname: creatorNickname // Save the nickname of the user who proposed the song
+    };
+    const docRef = await db.collection('songs').add(newSong);
+    res.status(201).json({ id: docRef.id, ...newSong });
+});
+
+// API to join or leave a song part
+app.post('/api/songs/:id/join', async (req, res) => {
+    const { realName, part } = req.body;
+    const songRef = db.collection('songs').doc(req.params.id);
+    const doc = await songRef.get();
+
+    if (!doc.exists) {
+        return res.status(404).send('Song not found.');
+    }
+
+    const song = doc.data();
+    const existingParticipant = song.participants.find(p => p.part === part);
+
+    if (existingParticipant && existingParticipant.name === realName) {
+        // User is already on this part, so remove them (cancel)
+        await songRef.update({
+            participants: admin.firestore.FieldValue.arrayRemove(existingParticipant)
+        });
+        return res.status(200).send('Successfully left the part.');
+    } else if (existingParticipant) {
+        // Part is taken by someone else
+        return res.status(400).send('This part is already taken.');
+    }
+
+    // Part is free, so join
+    await songRef.update({
+        participants: admin.firestore.FieldValue.arrayUnion({ name: realName, part })
+    });
+    res.status(200).send('Successfully joined the part.');
+});
+
+// API to delete a song (admin only)
+app.delete('/api/songs/:id', async (req, res) => {
+    // In a real app, you would verify the user is an admin here
+    // For now, we trust the client, but this is not secure.
+    await db.collection('songs').doc(req.params.id).delete();
+    res.status(200).send('Song deleted successfully.');
+});
+
+
+app.listen(port, () => {
+    console.log(`Server listening at http://localhost:${port}`);
+});

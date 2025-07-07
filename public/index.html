@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEXAGON 노래 게시판</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <h1>HEXAGON 노래 게시판</h1>
+    <div id="auth-container">
+        <div id="login-form">
+            <h2>로그인</h2>
+            <input type="text" id="login-nickname" placeholder="닉네임 (ID)">
+            <input type="password" id="admin-password" placeholder="관리자 비밀번호 (선택 사항)" style="display: none;">
+            <button id="login-btn">로그인</button>
+            <p>ID가 없으신가요? <a href="#" id="show-signup">회원가입</a></p>
+        </div>
+        <div id="signup-form" style="display: none;">
+            <h2>회원가입</h2>
+            <input type="text" id="signup-realName" placeholder="실명">
+            <input type="text" id="signup-nickname" placeholder="닉네임 (ID)">
+            <div class="checkbox-group">
+                <label>포지션:</label>
+                <select id="signup-position"></select>
+            </div>
+            <div class="checkbox-group">
+                <label>연주 가능 악기:</label>
+                <div id="signup-instruments-container"></div>
+            </div>
+            <button id="signup-btn">회원가입</button>
+            <p>이미 계정이 있으신가요? <a href="#" id="show-login">로그인</a></p>
+        </div>
+    </div>
+    <div id="main-container" style="display: none;">
+        <div class="main-content">
+            <div class="header">
+                <h2>환영합니다, <span id="user-greeting"></span>님!</h2>
+                <div>
+                    <button id="edit-profile-btn">&#128100; 프로필 수정</button>
+                    <button id="add-song-modal-btn">&#127925; 곡 추가</button>
+                    <button id="logout-btn">&#128682; 로그아웃</button>
+                </div>
+            </div>
+            <div id="song-list">
+            </div>
+        </div>
+        <div id="user-list-sidebar">
+            <h3>밴드 멤버</h3>
+            <div id="user-list">
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Song Modal -->
+    <div id="add-song-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3>새 곡 제안</h3>
+            <input type="text" id="song-title" placeholder="곡 제목">
+            <input type="text" id="artist" placeholder="아티스트">
+            <div class="checkbox-group">
+                <label>필요한 세션:</label>
+                <div id="needed-parts-container"></div>
+            </div>
+            <button id="propose-btn">&#10133; 제안하기</button>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="edit-profile-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn" id="edit-profile-close-btn">&times;</span>
+            <h3>프로필 수정</h3>
+            <input type="text" id="edit-realName" placeholder="실명">
+            <div class="checkbox-group">
+                <label>포지션:</label>
+                <select id="edit-position"></select>
+            </div>
+            <div class="checkbox-group">
+                <label>연주 가능 악기:</label>
+                <div id="edit-instruments-container"></div>
+            </div>
+            <button id="save-profile-btn">&#128190; 저장</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    </div>
+</body>
+</html>
