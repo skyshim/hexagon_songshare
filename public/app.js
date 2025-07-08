@@ -10,6 +10,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const showLogin = document.getElementById('show-login');
     const userGreeting = document.getElementById('user-greeting');
     const songList = document.getElementById('song-list');
+    const calendarBtn = document.getElementById('calendar-btn');
+    const calendarView = document.getElementById('calendar-view');
+    const songListBtn = document.getElementById('song-list-btn');
+    const adminScheduleForm = document.getElementById('admin-schedule-form');
+    const addScheduleBtn = document.getElementById('add-schedule-btn');
     const proposeBtn = document.getElementById('propose-btn');
     const adminPasswordField = document.getElementById('admin-password');
 
@@ -165,6 +170,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    songListBtn.addEventListener('click', () => toggleViews(true));
+    calendarBtn.addEventListener('click', () => toggleViews(false));
+    addScheduleBtn.addEventListener('click', handleAddSchedule);
+
     // Initial rendering of form elements
     renderCheckboxes(signupInstrumentsContainer, INSTRUMENTS);
     renderSelect(signupPositionSelect, POSITIONS);
@@ -186,6 +195,31 @@ document.addEventListener('DOMContentLoaded', () => {
         signupForm.style.display = showLogin ? 'none' : 'block';
     }
 
+    function toggleViews(showSongList) {
+        songList.style.display = showSongList ? 'block' : 'none';
+        calendarView.style.display = showSongList ? 'none' : 'block';
+        if (!showSongList) {
+            renderCalendar();
+        }
+    }
+
+    async function renderCalendar() {
+        const response = await fetch(`${API_BASE_URL}/api/calendar`);
+        const events = await response.json();
+
+        const calendarEl = document.getElementById('calendar');
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth'
+            },
+            events: events
+        });
+        calendar.render();
+    }
+
     function showAuthContent() {
         authContainer.style.display = 'block';
         mainContainer.style.display = 'none';
@@ -196,8 +230,30 @@ document.addEventListener('DOMContentLoaded', () => {
         authContainer.style.display = 'none';
         mainContainer.style.display = 'flex'; // Changed to flex for sidebar
         userGreeting.textContent = currentUser.nickname;
+        if (currentUser.isAdmin) {
+            adminScheduleForm.style.display = 'block';
+        }
+        toggleViews(true); // Show song list by default
         loadSongs();
         loadUsers();
+    }
+
+    async function handleAddSchedule() {
+        const title = document.getElementById('schedule-title').value;
+        const date = document.getElementById('schedule-date').value;
+
+        if (title && date) {
+            await fetch(`${API_BASE_URL}/api/calendar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, date, type: 'schedule' })
+            });
+            document.getElementById('schedule-title').value = '';
+            document.getElementById('schedule-date').value = '';
+            renderCalendar();
+        } else {
+            alert('일정 제목과 날짜를 모두 입력해주세요.');
+        }
     }
 
     // Helper to render checkboxes (for signup/edit profile)
@@ -355,9 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isPlayable && !isFilled) className += ' part-highlight'; // Highlight if playable and not filled
 
                 const text = isFilled ? `${instrument.emoji} ${instrument.name} (${participant.name})` : `${instrument.emoji} ${instrument.name}`;
-                const interestButtonHTML = (isFilled && !isCurrentUser) ? 
-                    `<button class="interest-btn" data-part-id="${part.id}" data-song-id="${song.id}">관심있어요</button>` : '';
-                return `<span class="needed-part ${className}" data-part-id="${part.id}" data-song-id="${song.id}">${text}</span>${interestButtonHTML}`;
+                return `<span class="needed-part ${className}" data-part-id="${part.id}" data-song-id="${song.id}">${text}</span>`;
             }).join('');
 
             const deleteButtonHTML = (currentUser.isAdmin || currentUser.nickname === song.creatorNickname) ? `<button class="delete-song-btn" data-song-id="${song.id}">&#128465;</button>` : '';
@@ -371,15 +425,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let completedIconHTML = '';
             let songClass = 'song';
+            let setDateButtonHTML = '';
             if (allPartsFilled) {
                 songClass += ' song-completed';
                 completedIconHTML = ' &#9989;'; // Check mark emoji
+                if (currentUser.isAdmin) {
+                    setDateButtonHTML = `<button class="set-date-btn" data-song-id="${song.id}">날짜 지정</button>`;
+                }
             }
 
             const songElement = document.createElement('div');
             songElement.className = songClass;
             songElement.innerHTML = `
-                <h3>${song.title} - ${song.artist} ${playButtonHTML} ${completedIconHTML} ${editButtonHTML} ${deleteButtonHTML}</h3>
+                <h3>${song.title} - ${song.artist} ${playButtonHTML} ${completedIconHTML} ${editButtonHTML} ${deleteButtonHTML} ${setDateButtonHTML}</h3>
                 <div>Needed: ${neededPartsHTML}</div>
             `;
             songList.appendChild(songElement);
@@ -508,18 +566,19 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 alert('유튜브 영상을 불러올 수 없습니다.');
             }
-        } else if (target.classList.contains('interest-btn')) {
-            const partId = target.dataset.partId;
+        } else if (target.classList.contains('set-date-btn')) {
             const songId = target.dataset.songId;
-            const response = await fetch(`${API_BASE_URL}/api/songs/${songId}/interest`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nickname: currentUser.nickname, partId })
-            });
-            if (response.ok) {
-                alert('관심을 표명했습니다. 곡 제안자에게 알림이 갈 것입니다.');
-            } else {
-                alert(await response.text());
+            const date = prompt('날짜를 입력하세요 (YYYY-MM-DD):');
+            if (date) {
+                const song = (await (await fetch(`${API_BASE_URL}/api/songs`)).json()).find(s => s.id === songId);
+                if(song) {
+                    await fetch(`${API_BASE_URL}/api/calendar`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: `${song.title} - ${song.artist}`, date, type: 'song', songId })
+                    });
+                    renderCalendar();
+                }
             }
         }
     }

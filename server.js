@@ -123,45 +123,13 @@ app.post('/api/songs', async (req, res) => {
         participants: [],
         youtubeUrl: youtubeUrl || null,
         startTime: startTime || 0,
-        creatorNickname: creatorNickname, // Save the nickname of the user who proposed the song
-        interestedUsers: [] // New field to store users interested in filled parts
+        creatorNickname: creatorNickname // Save the nickname of the user who proposed the song
     };
     const docRef = await db.collection('songs').add(newSong);
     res.status(201).json({ id: docRef.id, ...newSong });
 });
 
-// API to express interest in a filled part
-app.post('/api/songs/:id/interest', async (req, res) => {
-    const { nickname, partId } = req.body;
-    const songRef = db.collection('songs').doc(req.params.id);
-    const doc = await songRef.get();
 
-    if (!doc.exists) {
-        return res.status(404).send('Song not found.');
-    }
-
-    const song = doc.data();
-    const targetPart = song.neededParts.find(p => p.id === partId);
-
-    if (!targetPart) {
-        return res.status(404).send('Part not found in song.');
-    }
-
-    const isFilled = song.participants.some(p => p.partId === partId);
-    if (!isFilled) {
-        return res.status(400).send('This part is not filled. Please join directly.');
-    }
-
-    const alreadyInterested = song.interestedUsers.some(iu => iu.partId === partId && iu.nickname === nickname);
-    if (alreadyInterested) {
-        return res.status(400).send('You have already expressed interest in this part.');
-    }
-
-    await songRef.update({
-        interestedUsers: admin.firestore.FieldValue.arrayUnion({ nickname, partId })
-    });
-    res.status(200).send('Interest expressed successfully.');
-});
 
 // API to join or leave a song part
 app.post('/api/songs/:id/join', async (req, res) => {
@@ -231,9 +199,8 @@ app.put('/api/songs/:id', async (req, res) => {
         neededParts: updatedNeededParts,
         youtubeUrl: youtubeUrl || null,
         startTime: startTime || 0,
-        // Preserve creatorNickname and interestedUsers
-        creatorNickname: song.creatorNickname,
-        interestedUsers: song.interestedUsers || []
+        // Preserve creatorNickname
+        creatorNickname: song.creatorNickname
     };
 
     await songRef.update(updatedSong);
@@ -305,6 +272,24 @@ app.get('/api/youtube/details', async (req, res) => {
         console.error('Error fetching YouTube video:', error);
         res.status(500).send('Error fetching YouTube video.');
     }
+});
+
+
+// Calendar endpoints
+app.get('/api/calendar', async (req, res) => {
+    const calendarSnapshot = await db.collection('calendar').get();
+    const events = [];
+    calendarSnapshot.forEach(doc => {
+        events.push({ id: doc.id, ...doc.data() });
+    });
+    res.json(events);
+});
+
+app.post('/api/calendar', async (req, res) => {
+    const { title, date, type, songId } = req.body;
+    const newEvent = { title, date, type, songId };
+    const docRef = await db.collection('calendar').add(newEvent);
+    res.status(201).json({ id: docRef.id, ...newEvent });
 });
 
 

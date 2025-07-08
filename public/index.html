@@ -40,10 +40,22 @@
                 <div>
                     <button id="edit-profile-btn">&#128100; 프로필 수정</button>
                     <button id="add-song-modal-btn">&#127925; 곡 추가</button>
+                    <button id="song-list-btn">&#127925; 곡 목록</button>
+                    <button id="calendar-btn">&#128197; 캘린더</button>
                     <button id="logout-btn">&#128682; 로그아웃</button>
                 </div>
             </div>
             <div id="song-list">
+            </div>
+            <div id="calendar-view" style="display: none;">
+                <h2>밴드 일정</h2>
+                <div id="admin-schedule-form" style="display: none;">
+                    <h3>새 일정 추가</h3>
+                    <input type="text" id="schedule-title" placeholder="일정 제목">
+                    <input type="date" id="schedule-date">
+                    <button id="add-schedule-btn">일정 추가</button>
+                </div>
+                <div id="calendar"></div>
             </div>
         </div>
         <div id="user-list-sidebar">
@@ -122,6 +134,7 @@
         </div>
     </div>
 
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <script src="app.js"></script>
     </div>
 </body>
