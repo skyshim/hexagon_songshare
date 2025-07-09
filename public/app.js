@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedNeededParts = []; // To store parts for the new song
     let editingSongId = null; // To store the ID of the song being edited
     let editNeededParts = []; // To store parts for the song being edited
+    let calendar; // To hold the FullCalendar instance
 
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
         ? 'http://localhost:3000' 
@@ -204,20 +205,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function renderCalendar() {
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
+
         const response = await fetch(`${API_BASE_URL}/api/calendar`);
         const events = await response.json();
 
-        const calendarEl = document.getElementById('calendar');
-        const calendar = new FullCalendar.Calendar(calendarEl, {
+        if (calendar) {
+            calendar.destroy();
+        }
+
+        calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth'
             },
-            events: events
+            events: events,
+            eventContent: function(arg) {
+                let eventEl = document.createElement('div');
+                eventEl.innerHTML = `<b>${arg.event.title}</b>`;
+                if (currentUser.isAdmin) {
+                    let deleteBtn = document.createElement('span');
+                    deleteBtn.innerHTML = ' &times;';
+                    deleteBtn.className = 'delete-event-btn';
+                    deleteBtn.onclick = () => handleDeleteEvent(arg.event.id);
+                    eventEl.appendChild(deleteBtn);
+                }
+                return { domNodes: [eventEl] };
+            }
         });
         calendar.render();
+    }
+
+    async function handleDeleteEvent(eventId) {
+        if (confirm('Are you sure you want to delete this event?')) {
+            const response = await fetch(`${API_BASE_URL}/api/calendar/${eventId}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                const event = calendar.getEventById(eventId);
+                if (event) {
+                    event.remove();
+                }
+            } else {
+                alert('Failed to delete event.');
+            }
+        }
     }
 
     function showAuthContent() {
@@ -243,14 +278,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const date = document.getElementById('schedule-date').value;
 
         if (title && date) {
-            await fetch(`${API_BASE_URL}/api/calendar`, {
+            const response = await fetch(`${API_BASE_URL}/api/calendar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, date, type: 'schedule' })
             });
-            document.getElementById('schedule-title').value = '';
-            document.getElementById('schedule-date').value = '';
-            renderCalendar();
+
+            if (response.ok) {
+                document.getElementById('schedule-title').value = '';
+                document.getElementById('schedule-date').value = '';
+                const newEvent = await response.json();
+                if (calendar) {
+                    calendar.addEvent(newEvent);
+                } else {
+                    renderCalendar(); // Fallback if calendar isn't initialized
+                }
+            } else {
+                alert('Failed to add schedule.');
+            }
         } else {
             alert('일정 제목과 날짜를 모두 입력해주세요.');
         }
@@ -398,6 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const songs = await response.json();
         songList.innerHTML = '';
         songs.forEach(song => {
+            console.log('Song data:', song); // For debugging
             const neededPartsHTML = song.neededParts.map(part => {
                 const instrument = INSTRUMENTS.find(inst => inst.name === part.name) || { name: part.name, emoji: '❓' };
                 const participant = song.participants.find(p => p.partId === part.id);
@@ -432,6 +478,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (currentUser.isAdmin) {
                     setDateButtonHTML = `<button class="set-date-btn" data-song-id="${song.id}">날짜 지정</button>`;
                 }
+            } else if (song.seatsLeft > 0 && song.seatsLeft <= 2) { // Highlight if 1 or 2 seats are left
+                songClass += ' song-almost-completed';
             }
 
             const songElement = document.createElement('div');
@@ -572,12 +620,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (date) {
                 const song = (await (await fetch(`${API_BASE_URL}/api/songs`)).json()).find(s => s.id === songId);
                 if(song) {
-                    await fetch(`${API_BASE_URL}/api/calendar`, {
+                    const response = await fetch(`${API_BASE_URL}/api/calendar`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ title: `${song.title} - ${song.artist}`, date, type: 'song', songId })
                     });
-                    renderCalendar();
+                    if (response.ok) {
+                        const newEvent = await response.json();
+                        if (calendar) {
+                            calendar.addEvent(newEvent);
+                        } else {
+                            renderCalendar();
+                        }
+                    }
                 }
             }
         }

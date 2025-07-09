@@ -294,6 +294,12 @@ button {
     box-shadow: 0 0 10px rgba(46, 204, 113, 0.8); /* Increased shadow for visibility */
 }
 
+.song-almost-completed {
+    border: 2px solid #f1c40f; /* Yellow border for almost completed songs */
+    box-shadow: 0 0 10px rgba(241, 196, 15, 0.8);
+    background-color: #fef9e7; /* Light yellow background */
+}
+
 /* --- Modal --- */
 .modal {
     position: fixed;
@@ -380,4 +386,11 @@ button {
 .checkbox-item label {
     display: inline-block;
     font-weight: normal;
+}
+
+.delete-event-btn {
+    cursor: pointer;
+    color: red;
+    font-weight: bold;
+    margin-left: 5px;
 }

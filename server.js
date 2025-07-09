@@ -95,12 +95,43 @@ app.post('/api/profile/update', async (req, res) => {
 
 // API to get all songs
 app.get('/api/songs', async (req, res) => {
-    const songsSnapshot = await db.collection('songs').orderBy('title').get();
+    const songsSnapshot = await db.collection('songs').get();
     const songs = [];
     songsSnapshot.forEach(doc => {
         songs.push({ id: doc.id, ...doc.data() });
     });
-    res.json(songs);
+
+    // Calculate seats left and sort
+    const completedSongs = [];
+    const almostCompletedSongs = [];
+    const otherSongs = [];
+
+    songs.forEach(song => {
+        const neededParts = song.neededParts || [];
+        const participants = song.participants || [];
+        if (neededParts.length > 0) {
+            song.seatsLeft = neededParts.length - participants.length;
+        } else {
+            song.seatsLeft = 0;
+        }
+
+        if (song.seatsLeft === 0) {
+            completedSongs.push(song);
+        } else if (song.seatsLeft > 0 && song.seatsLeft <= 2) {
+            almostCompletedSongs.push(song);
+        } else {
+            otherSongs.push(song);
+        }
+    });
+
+    // Sort completed and almost completed songs by title for consistent ordering within their groups
+    completedSongs.sort((a, b) => a.title.localeCompare(b.title));
+    almostCompletedSongs.sort((a, b) => a.title.localeCompare(b.title));
+
+    // Concatenate in the desired order: completed, almost completed, then others (maintaining original order for others)
+    const sortedSongs = [...completedSongs, ...almostCompletedSongs, ...otherSongs];
+
+    res.json(sortedSongs);
 });
 
 // API to add a new song
@@ -111,9 +142,9 @@ app.post('/api/songs', async (req, res) => {
     const { title, artist, neededParts, youtubeUrl, startTime, creatorNickname } = req.body;
     
     // Assign a unique ID to each needed part
-    const partsWithIds = (neededParts || []).map(partName => ({
+    const partsWithIds = (neededParts || []).map(part => ({
         id: crypto.randomUUID(),
-        name: partName
+        name: part.name
     }));
 
     const newSong = {
@@ -162,8 +193,9 @@ app.post('/api/songs/:id/join', async (req, res) => {
     }
 
     // Part is free, so join
+    const partName = (typeof targetPart.name === 'object' && targetPart.name !== null) ? targetPart.name.name : targetPart.name;
     await songRef.update({
-        participants: admin.firestore.FieldValue.arrayUnion({ name: realName, partId, partName: targetPart.name }) // Store partName for display
+        participants: admin.firestore.FieldValue.arrayUnion({ name: realName, partId, partName: partName }) // Store partName for display
     });
     res.status(200).send('Successfully joined the part.');
 });
@@ -187,10 +219,11 @@ app.put('/api/songs/:id', async (req, res) => {
         return res.status(403).send('You are not authorized to edit this song.');
     }
 
-    // Assign unique IDs to new needed parts, preserve existing IDs
+    // Clean up and assign unique IDs to new needed parts
     const updatedNeededParts = (neededParts || []).map(part => {
-        if (part.id) return part; // Part already has an ID
-        return { id: crypto.randomUUID(), name: part.name };
+        const name = (typeof part.name === 'object' && part.name !== null) ? part.name.name : part.name;
+        const id = part.id || crypto.randomUUID();
+        return { id, name };
     });
 
     const updatedSong = {
@@ -287,9 +320,14 @@ app.get('/api/calendar', async (req, res) => {
 
 app.post('/api/calendar', async (req, res) => {
     const { title, date, type, songId } = req.body;
-    const newEvent = { title, date, type, songId };
+    const newEvent = { title, date, type, songId: songId || null };
     const docRef = await db.collection('calendar').add(newEvent);
     res.status(201).json({ id: docRef.id, ...newEvent });
+});
+
+app.delete('/api/calendar/:id', async (req, res) => {
+    await db.collection('calendar').doc(req.params.id).delete();
+    res.status(200).send('Event deleted successfully.');
 });
 
 
