@@ -248,6 +248,36 @@ app.delete('/api/songs/:id', async (req, res) => {
     res.status(200).send('Song deleted successfully.');
 });
 
+// API to remove a participant from a song (admin only)
+app.post('/api/songs/:songId/remove_participant', async (req, res) => {
+    const { songId } = req.params;
+    const { partId, isAdmin } = req.body;
+
+    if (!isAdmin) {
+        return res.status(403).send('You are not authorized to perform this action.');
+    }
+
+    const songRef = db.collection('songs').doc(songId);
+    const doc = await songRef.get();
+
+    if (!doc.exists) {
+        return res.status(404).send('Song not found.');
+    }
+
+    const song = doc.data();
+    const participantToRemove = song.participants.find(p => p.partId === partId);
+
+    if (!participantToRemove) {
+        return res.status(200).send('Participant not found or already removed.');
+    }
+
+    await songRef.update({
+        participants: admin.firestore.FieldValue.arrayRemove(participantToRemove)
+    });
+
+    res.status(200).send('Participant removed successfully.');
+});
+
 // YouTube API endpoint
 app.get('/api/youtube/details', async (req, res) => {
     if (!process.env.YOUTUBE_API_KEY) {

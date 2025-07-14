@@ -456,7 +456,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isCurrentUser) className += ' current-user-part';
                 if (isPlayable && !isFilled) className += ' part-highlight'; // Highlight if playable and not filled
 
-                const text = isFilled ? `${instrument.emoji} ${instrument.name} (${participant.name})` : `${instrument.emoji} ${instrument.name}`;
+                const adminRemoveBtn = (currentUser.isAdmin && isFilled) ? `<button class="remove-participant-btn" data-song-id="${song.id}" data-part-id="${part.id}">&times;</button>` : '';
+                const text = isFilled ? `${instrument.emoji} ${instrument.name} (${participant.name}) ${adminRemoveBtn}` : `${instrument.emoji} ${instrument.name}`;
                 return `<span class="needed-part ${className}" data-part-id="${part.id}" data-song-id="${song.id}">${text}</span>`;
             }).join('');
 
@@ -589,6 +590,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (confirm('곡을 삭제하시겠습니까?')) {
                 await fetch(`${API_BASE_URL}/api/songs/${songId}`, { method: 'DELETE' });
                 loadSongs();
+            }
+        } else if (target.classList.contains('remove-participant-btn')) {
+            const songId = target.dataset.songId;
+            const partId = target.dataset.partId;
+            if (confirm('해당 파트의 유저를 삭제하시겠습니까?')) {
+                const response = await fetch(`${API_BASE_URL}/api/songs/${songId}/remove_participant`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ partId, isAdmin: currentUser.isAdmin })
+                });
+                if (response.ok) {
+                    loadSongs();
+                } else {
+                    alert(await response.text());
+                }
             }
         } else if (target.classList.contains('edit-song-btn')) {
             const songId = target.dataset.songId;
