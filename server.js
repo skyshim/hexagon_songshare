@@ -92,6 +92,49 @@ app.post('/api/profile/update', async (req, res) => {
     res.status(200).send('Profile updated successfully.');
 });
 
+// API to delete a user (admin only)
+app.delete('/api/users/:nickname', async (req, res) => {
+    const { isAdmin } = req.body;
+    const { nickname } = req.params;
+
+    if (!isAdmin) {
+        return res.status(403).send('You are not authorized to perform this action.');
+    }
+    if (nickname.toLowerCase() === 'admin') {
+        return res.status(400).send('Cannot delete the admin user.');
+    }
+
+    const userRef = db.collection('users').doc(nickname);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+        return res.status(404).send('User not found.');
+    }
+
+    const userRealName = userDoc.data().realName;
+
+    // Transaction to ensure atomicity
+    await db.runTransaction(async (transaction) => {
+        // 1. Delete the user
+        transaction.delete(userRef);
+
+        // 2. Remove the user from all songs they participated in
+        const songsSnapshot = await db.collection('songs').get();
+        songsSnapshot.forEach(songDoc => {
+            const song = songDoc.data();
+            const newParticipants = song.participants.filter(p => p.name !== userRealName);
+
+            // If the participants list changed, update the song
+            if (newParticipants.length < song.participants.length) {
+                const songRefToUpdate = db.collection('songs').doc(songDoc.id);
+                transaction.update(songRefToUpdate, { participants: newParticipants });
+            }
+        });
+    });
+
+    res.status(200).send('User deleted successfully and removed from all participated songs.');
+});
+
 
 // API to get all songs
 app.get('/api/songs', async (req, res) => {

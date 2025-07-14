@@ -175,6 +175,27 @@ document.addEventListener('DOMContentLoaded', () => {
     calendarBtn.addEventListener('click', () => toggleViews(false));
     addScheduleBtn.addEventListener('click', handleAddSchedule);
 
+    userListDiv.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('delete-user-btn')) {
+            const nickname = e.target.dataset.nickname;
+            if (confirm(`Are you sure you want to delete the user "${nickname}"? This action cannot be undone.`)) {
+                const response = await fetch(`${API_BASE_URL}/api/users/${nickname}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isAdmin: currentUser.isAdmin })
+                });
+
+                if (response.ok) {
+                    alert('User deleted successfully.');
+                    loadUsers(); // Refresh the user list
+                    loadSongs(); // Refresh the song list to reflect removed participants
+                } else {
+                    alert(`Failed to delete user: ${await response.text()}`);
+                }
+            }
+        }
+    });
+
     // Initial rendering of form elements
     renderCheckboxes(signupInstrumentsContainer, INSTRUMENTS);
     renderSelect(signupPositionSelect, POSITIONS);
@@ -504,12 +525,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const positionHtml = (user.position && user.position.length > 0) ? 
             (POSITIONS.find(p => p.name === user.position[0]) || { name: user.position[0], emoji: '❓' }).emoji + ' ' + user.position[0] : 'N/A';
 
+            const deleteBtnHtml = (currentUser.isAdmin && user.nickname.toLowerCase() !== 'admin') 
+                ? `<button class="delete-user-btn" data-nickname="${user.nickname}">멤버 삭제</button>` 
+                : '';
+
             return `
                 <div class="user-card">
                     <h4>${user.nickname} (${user.realName})</h4>
                     <p>포지션: ${positionHtml}</p>
                     <br>
                     <p>가능 악기: ${instrumentsHtml || 'N/A'}</p>
+                    ${deleteBtnHtml}
                 </div>
             `;
         }).join('');
